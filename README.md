@@ -48,6 +48,13 @@ On macOS/Linux use `.venv/bin/python`.
 
 Claude calls `new_layout` → `add_box` / `add_path` → `save_gds(open_after=True)`.
 
+You can also open and check an existing layout:
+
+> "Load chip.gds, check that M1 spacing ≥ 0.15 µm and that OD never overlaps POLY, and report violations."
+
+Claude calls `load_gds` → `inspect_gds` → `drc_check([...])`, then edits and `save_gds`.
+See [Editing &amp; DRC](https://geniuskey.github.io/klayout-draw-mcp/editing-and-drc/).
+
 For anything beyond the basic shapes, `run_script` exposes the full `klayout.db` API.
 
 ## Examples

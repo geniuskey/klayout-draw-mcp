@@ -49,6 +49,8 @@ markdown_extensions:
 nav:
   - Home: index.md
   - Examples: examples.md
+  - Editing & DRC: editing-and-drc.md
+  - Changelog: changelog.md
 
 extra:
   social:

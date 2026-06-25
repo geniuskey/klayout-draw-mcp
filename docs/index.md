@@ -58,6 +58,9 @@ claude mcp add klayout -s user -- python -m klayout_draw_mcp.server
 When running from a checkout, point at the project's interpreter instead, e.g.
 `<repo>/.venv/Scripts/python.exe` on Windows or `<repo>/.venv/bin/python` on macOS/Linux.
 
+For `uvx`, Claude Desktop, verification and troubleshooting, see the full
+[Installation &amp; Setup](installation.md) guide.
+
 ## How it works
 
 There are two complementary ways to produce geometry:

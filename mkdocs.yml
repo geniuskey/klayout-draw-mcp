@@ -42,12 +42,15 @@ markdown_extensions:
       anchor_linenums: true
   - pymdownx.inlinehilite
   - pymdownx.superfences
+  - pymdownx.tabbed:
+      alternate_style: true
   - pymdownx.snippets:
       base_path: ["."]
       check_paths: true
 
 nav:
   - Home: index.md
+  - Installation: installation.md
   - Getting Started: getting-started.md
   - Examples: examples.md
   - Editing & DRC: editing-and-drc.md

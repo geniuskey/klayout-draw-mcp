@@ -6,7 +6,7 @@ connected. Follow it top to bottom and you will have created, edited, inspected,
 DRC-checked, and placed-and-routed a layout — the whole tool set on one page.
 
 !!! note "Setup"
-    `pip install klayout-draw-mcp`, then register it (see [Home](index.md#register-with-claude-code)).
+    Install and connect the server first — see [Installation &amp; Setup](installation.md).
     All coordinates are in **micrometers**; the default database grid is `dbu = 0.001` (1 nm).
     The screenshots are the actual rendered output of each step.
 

@@ -12,7 +12,9 @@ All notable changes to this project are documented here. The format is based on
   (Manhattan, auto L-corners). Drawing tools now target a switchable active cell.
 - `klayout-pnr` skill with recipes — row placement, power rails, and an obstacle-aware
   maze (Lee) router — plus an end-to-end place-and-route demo.
-- Documentation: a Getting Started walkthrough and a Placement & Routing page.
+- Documentation: Installation, Getting Started, Placement & Routing, an auto-generated
+  Tool Reference, and a `run_script` cookbook — with rendered screenshots, a DRC
+  violation visualisation, and a layer colour legend.
 
 ## [0.1.1] - 2026-06-25
 

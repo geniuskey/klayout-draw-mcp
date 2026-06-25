@@ -69,6 +69,7 @@ There are two complementary ways to produce geometry:
    layout step by step. All coordinates are in micrometers.
 2. **`run_script`** executes arbitrary Python with `klayout.db` available, for anything
    the high-level tools do not cover — cell hierarchy, array instances, boolean ops, DRC.
+   See the [run_script cookbook](run-script.md) for copy-paste recipes.
 
 Beyond drawing from scratch, you can **load an existing layout** with `load_gds` and
 keep editing it, **inspect** any file or the session with `inspect_gds`, and run

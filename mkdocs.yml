@@ -70,6 +70,7 @@ nav:
   - Examples: examples.md
   - Editing & DRC: editing-and-drc.md
   - Placement & Routing: place-and-route.md
+  - run_script Cookbook: run-script.md
   - Tool Reference: reference.md
   - Changelog: changelog.md
 

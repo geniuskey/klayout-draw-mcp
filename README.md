@@ -14,6 +14,9 @@ Layout geometry is built in-process with the standalone [`klayout`](https://pypi
 | `add_path(layer, points, width, datatype)` | Add a path with width |
 | `add_label(layer, x, y, text, datatype)` | Add a text label |
 | `layout_info()` | Inspect current layout (layers, bbox, shape count) |
+| `load_gds(path, top_cell?)` | Load an existing GDS/OASIS into the session for editing |
+| `inspect_gds(path?)` | Per-layer shape count, area and bbox of a file or the session |
+| `drc_check(rules, path?)` | Simple DRC: spacing / width / overlap / separation / enclosure |
 | `save_gds(path, open_after)` | Write GDS/OASIS; optionally open in the editor |
 | `open_layout(file_path)` | Open a file in KLayout (viewer) |
 | `open_editor(file_path?)` | Open KLayout in editor mode, or a blank layout |

@@ -28,6 +28,9 @@ See the [Examples](examples.md) for layouts produced exactly this way.
 | `add_path(layer, points, width, datatype)` | Add a path with width |
 | `add_label(layer, x, y, text, datatype)` | Add a text label |
 | `layout_info()` | Inspect current layout (layers, bbox, shape count) |
+| `load_gds(path, top_cell?)` | Load an existing GDS/OASIS into the session for editing |
+| `inspect_gds(path?)` | Per-layer shape count, area and bbox of a file or the session |
+| `drc_check(rules, path?)` | Simple DRC: spacing / width / overlap / separation / enclosure |
 | `save_gds(path, open_after)` | Write GDS/OASIS; optionally open in the editor |
 | `open_layout(file_path)` | Open a file in KLayout (viewer) |
 | `open_editor(file_path?)` | Open KLayout in editor mode, or a blank layout |
@@ -59,6 +62,19 @@ There are two complementary ways to produce geometry:
    layout step by step. All coordinates are in micrometers.
 2. **`run_script`** executes arbitrary Python with `klayout.db` available, for anything
    the high-level tools do not cover — cell hierarchy, array instances, boolean ops, DRC.
+
+Beyond drawing from scratch, you can **load an existing layout** with `load_gds` and
+keep editing it, **inspect** any file or the session with `inspect_gds`, and run
+**simple DRC** with `drc_check` — spacing, width, forbidden overlap, separation and
+enclosure rules, each violation reported with a location:
+
+```json
+[
+  {"type": "spacing", "layer": 3, "datatype": 0, "min": 0.15},
+  {"type": "width",   "layer": 6, "datatype": 0, "min": 0.08},
+  {"type": "overlap", "layer": 3, "layer2": 6}
+]
+```
 
 !!! warning
     `run_script` executes arbitrary Python locally, in-process. Only run scripts you trust.

@@ -199,6 +199,200 @@ def open_editor(file_path: Optional[str] = None) -> str:
 
 
 # ---------------------------------------------------------------------------
+# Load / inspect existing layouts, and simple DRC
+# ---------------------------------------------------------------------------
+def _resolve_top(ly: db.Layout, top_cell: Optional[str]) -> db.Cell:
+    if top_cell is not None:
+        if not ly.has_cell(top_cell):
+            names = [c.name for c in ly.each_cell()]
+            raise RuntimeError(f"Cell '{top_cell}' not found. Cells: {names}")
+        return ly.cell(ly.cell_by_name(top_cell))
+    tops = ly.top_cells()
+    if not tops:
+        raise RuntimeError("Layout has no cells.")
+    return tops[0]
+
+
+def _region(ly: db.Layout, top: db.Cell, layer: int, datatype: int) -> db.Region:
+    """Flattened region for a layer/datatype (empty if the layer is absent)."""
+    li = ly.find_layer(layer, datatype)
+    if li is None:
+        return db.Region()
+    return db.Region(top.begin_shapes_rec(li))
+
+
+def _source(path: Optional[str], top_cell: Optional[str]) -> tuple[db.Layout, db.Cell]:
+    """Resolve the layout to operate on: a file if given, else the session."""
+    if path:
+        p = Path(path).expanduser()
+        if not p.is_file():
+            raise RuntimeError(f"File not found: {p}")
+        ly = db.Layout()
+        ly.read(str(p))
+        return ly, _resolve_top(ly, top_cell)
+    s = _require_session()
+    return s.layout, s.top
+
+
+@mcp.tool()
+def load_gds(path: str, top_cell: Optional[str] = None) -> str:
+    """Load an existing GDS/OASIS file into the active session for editing.
+
+    After loading, keep adding shapes (add_box / add_polygon / ...), inspect or
+    DRC-check it, then save_gds() to write it back. ``top_cell`` selects the cell
+    to edit (defaults to the first top cell). Replaces any current in-memory layout.
+    """
+    global _session
+    p = Path(path).expanduser()
+    if not p.is_file():
+        raise RuntimeError(f"File not found: {p}")
+    ly = db.Layout()
+    ly.read(str(p))
+    top = _resolve_top(ly, top_cell)
+    _session = LayoutSession(layout=ly, top=top)
+    nlayers = len(list(ly.layer_indexes()))
+    return (
+        f"Loaded {p}: top_cell='{top.name}', dbu={ly.dbu} um, "
+        f"{ly.cells()} cells, {nlayers} layers. Ready to edit."
+    )
+
+
+@mcp.tool()
+def inspect_gds(path: Optional[str] = None, top_cell: Optional[str] = None) -> str:
+    """Inspect a layout: per-layer shape count, area and bbox, plus the cell list.
+
+    With ``path``: inspect that file without touching the session. Without it:
+    inspect the current in-memory session. Areas use merged geometry (so
+    overlaps are not double-counted); coordinates are in micrometers.
+    """
+    ly, top = _source(path, top_cell)
+    dbu = ly.dbu
+    out = [
+        f"top_cell='{top.name}', dbu={dbu} um, cells={ly.cells()}",
+        f"bbox: {top.dbbox().to_s()} um",
+        f"cells: {[c.name for c in ly.each_cell()]}",
+        "",
+        f"{'layer':<10}{'shapes':>8}{'area[um^2]':>14}   bbox[um]",
+    ]
+    idxs = sorted(ly.layer_indexes(), key=lambda i: (ly.get_info(i).layer, ly.get_info(i).datatype))
+    if not idxs:
+        out.append("(no layers)")
+    for li in idxs:
+        info = ly.get_info(li)
+        reg = db.Region(top.begin_shapes_rec(li))
+        n = reg.count()
+        reg.merge()
+        area = reg.area() * dbu * dbu
+        bb = reg.bbox()
+        bbs = (
+            f"({bb.left * dbu:g},{bb.bottom * dbu:g})-({bb.right * dbu:g},{bb.top * dbu:g})"
+            if not bb.empty()
+            else "-"
+        )
+        out.append(f"{info.layer}/{info.datatype:<8}{n:>8}{area:>14.4f}   {bbs}")
+    return "\n".join(out)
+
+
+def _locations(obj, dbu: float, maxn: int) -> list[str]:
+    """Centre points (um) of up to ``maxn`` violation markers (EdgePairs or Region)."""
+    locs = []
+    for i, item in enumerate(obj.each()):
+        if i >= maxn:
+            break
+        b = item.bbox()
+        cx = (b.left + b.right) / 2 * dbu
+        cy = (b.bottom + b.top) / 2 * dbu
+        locs.append(f"({cx:.3f},{cy:.3f})")
+    return locs
+
+
+def _check_rule(ly: db.Layout, top: db.Cell, rule: dict, max_report: int) -> str:
+    dbu = ly.dbu
+    rtype = rule.get("type", "")
+    layer = int(rule["layer"])
+    dt = int(rule.get("datatype", 0))
+    reg = _region(ly, top, layer, dt)
+    tag = f"{layer}/{dt}"
+
+    def to_dbu(v) -> int:
+        return round(float(v) / dbu)
+
+    if rtype in ("spacing", "space"):
+        res = reg.space_check(to_dbu(rule["min"]))
+        head = f"spacing {tag} >= {rule['min']}um"
+    elif rtype == "width":
+        res = reg.width_check(to_dbu(rule["min"]))
+        head = f"width {tag} >= {rule['min']}um"
+    elif rtype in ("overlap", "no_overlap", "not_overlap"):
+        reg2 = _region(ly, top, int(rule["layer2"]), int(rule.get("datatype2", 0)))
+        inter = reg & reg2
+        inter.merge()
+        tag2 = f"{rule['layer2']}/{rule.get('datatype2', 0)}"
+        n = inter.count()
+        locs = _locations(inter, dbu, max_report)
+        area = inter.area() * dbu * dbu
+        status = "PASS" if n == 0 else f"FAIL ({n} regions, {area:.4f} um^2)"
+        extra = f"  at {', '.join(locs)}" if locs else ""
+        return f"forbidden overlap {tag} & {tag2}: {status}{extra}"
+    elif rtype == "separation":
+        reg2 = _region(ly, top, int(rule["layer2"]), int(rule.get("datatype2", 0)))
+        res = reg.separation_check(reg2, to_dbu(rule["min"]))
+        head = f"separation {tag} <-> {rule['layer2']}/{rule.get('datatype2', 0)} >= {rule['min']}um"
+    elif rtype in ("enclosure", "enclosing"):
+        reg2 = _region(ly, top, int(rule["layer2"]), int(rule.get("datatype2", 0)))
+        # reg2 must enclose reg by at least min
+        res = reg2.enclosing_check(reg, to_dbu(rule["min"]))
+        head = f"enclosure {rule['layer2']}/{rule.get('datatype2', 0)} of {tag} >= {rule['min']}um"
+    else:
+        return f"unknown rule type: {rtype!r}"
+
+    n = res.count()
+    status = "PASS" if n == 0 else f"FAIL ({n} violations)"
+    locs = _locations(res, dbu, max_report)
+    extra = f"  at {', '.join(locs)}" if locs else ""
+    return f"{head}: {status}{extra}"
+
+
+@mcp.tool()
+def drc_check(
+    rules: list[dict],
+    path: Optional[str] = None,
+    top_cell: Optional[str] = None,
+    max_report: int = 10,
+) -> str:
+    """Run simple DRC rules against a layout and report violations.
+
+    Operates on ``path`` if given, else the current session. Each rule is a dict
+    (datatype defaults to 0, distances in micrometers):
+
+      {"type": "spacing",     "layer": L, "datatype": D, "min": um}
+      {"type": "width",       "layer": L, "datatype": D, "min": um}
+      {"type": "overlap",     "layer": L, "datatype": D, "layer2": L2, "datatype2": D2}
+      {"type": "separation",  "layer": L, "datatype": D, "layer2": L2, "datatype2": D2, "min": um}
+      {"type": "enclosure",   "layer": L, "datatype": D, "layer2": L2, "datatype2": D2, "min": um}
+
+    "spacing" is min space within a layer; "width" is min feature width;
+    "overlap" flags any intersection between two layers (forbidden overlap);
+    "separation" is min space between two layers; "enclosure" requires layer2 to
+    surround layer by min. Up to ``max_report`` violation centres are listed per rule.
+    """
+    if not rules:
+        return "No rules provided."
+    ly, top = _source(path, top_cell)
+    lines, fails = [], 0
+    for rule in rules:
+        try:
+            line = _check_rule(ly, top, rule, max_report)
+        except Exception as e:  # noqa: BLE001
+            line = f"rule {rule}: ERROR {type(e).__name__}: {e}"
+        if ": FAIL" in line or line.startswith(("unknown", "rule ")):
+            fails += 1
+        lines.append(line)
+    summary = f"DRC: {len(rules)} rules, {fails} failing\n" + "\n".join(lines)
+    return summary
+
+
+# ---------------------------------------------------------------------------
 # Escape hatch: arbitrary klayout.db scripting
 # ---------------------------------------------------------------------------
 @mcp.tool()

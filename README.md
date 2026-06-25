@@ -1,6 +1,6 @@
-# klayout-mcp
+# klayout-draw-mcp
 
-An [MCP](https://modelcontextprotocol.io) server for **KLayout** — draw, generate, and view GDS layouts from an AI assistant such as Claude Code or Claude Desktop.
+An [MCP](https://modelcontextprotocol.io) server for **drawing GDS layouts** with **KLayout** — generate, edit, and view layouts from an AI assistant such as Claude Code or Claude Desktop.
 
 Layout geometry is built in-process with the standalone [`klayout`](https://pypi.org/project/klayout/) Python module (no GUI needed). The installed KLayout application is launched only for viewing or manual editing.
 
@@ -34,7 +34,7 @@ uv sync
 ## Register with Claude Code
 
 ```bash
-claude mcp add klayout -s user -- "<repo>/.venv/Scripts/python.exe" -m klayout_mcp.server
+claude mcp add klayout -s user -- "<repo>/.venv/Scripts/python.exe" -m klayout_draw_mcp.server
 ```
 
 On macOS/Linux use `.venv/bin/python`.

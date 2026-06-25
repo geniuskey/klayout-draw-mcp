@@ -4,6 +4,16 @@ All notable changes to this project are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/), and this project adheres to
 [Semantic Versioning](https://semver.org/).
 
+## [0.1.2] - 2026-06-26
+
+### Added
+- Placement & routing building blocks: `create_cell`, `use_cell`, `place_cell`
+  (instance or array), `add_via` (cut array + enclosing metal), and `add_wire`
+  (Manhattan, auto L-corners). Drawing tools now target a switchable active cell.
+- `klayout-pnr` skill with recipes — row placement, power rails, and an obstacle-aware
+  maze (Lee) router — plus an end-to-end place-and-route demo.
+- Documentation: a Getting Started walkthrough and a Placement & Routing page.
+
 ## [0.1.1] - 2026-06-25
 
 ### Added
@@ -26,5 +36,6 @@ All notable changes to this project are documented here. The format is based on
 - GitHub Actions for building/deploying the docs to GitHub Pages and for publishing to
   PyPI via Trusted Publishing.
 
+[0.1.2]: https://pypi.org/project/klayout-draw-mcp/0.1.2/
 [0.1.1]: https://pypi.org/project/klayout-draw-mcp/0.1.1/
 [0.1.0]: https://pypi.org/project/klayout-draw-mcp/0.1.0/

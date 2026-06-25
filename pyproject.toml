@@ -1,6 +1,6 @@
 [project]
 name = "klayout-draw-mcp"
-version = "0.1.1"
+version = "0.1.2"
 description = "MCP server for drawing, generating, and editing GDS layouts with KLayout."
 readme = "README.md"
 requires-python = ">=3.10"

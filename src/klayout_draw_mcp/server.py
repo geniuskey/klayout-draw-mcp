@@ -74,12 +74,19 @@ def _launch_app(args: list[str]) -> str:
 class LayoutSession:
     layout: db.Layout
     top: db.Cell
+    draw_cell: Optional[db.Cell] = None
 
     @classmethod
     def create(cls, top_cell: str, dbu: float) -> "LayoutSession":
         ly = db.Layout()
         ly.dbu = dbu
-        return cls(layout=ly, top=ly.create_cell(top_cell))
+        top = ly.create_cell(top_cell)
+        return cls(layout=ly, top=top, draw_cell=top)
+
+    @property
+    def draw(self) -> db.Cell:
+        """Cell that add_* and placement target (defaults to the top cell)."""
+        return self.draw_cell if self.draw_cell is not None else self.top
 
     def layer(self, layer: int, datatype: int) -> int:
         return self.layout.layer(layer, datatype)
@@ -113,7 +120,7 @@ def new_layout(top_cell: str = "TOP", dbu: float = 0.001) -> str:
 def add_box(layer: int, x1: float, y1: float, x2: float, y2: float, datatype: int = 0) -> str:
     """Add a rectangle (micrometers) on GDS layer/datatype."""
     s = _require_session()
-    s.top.shapes(s.layer(layer, datatype)).insert(db.DBox(x1, y1, x2, y2))
+    s.draw.shapes(s.layer(layer, datatype)).insert(db.DBox(x1, y1, x2, y2))
     return f"Box on {layer}/{datatype}: ({x1},{y1})-({x2},{y2}) um."
 
 
@@ -122,7 +129,7 @@ def add_polygon(layer: int, points: list[list[float]], datatype: int = 0) -> str
     """Add a polygon from a list of [x, y] vertices (micrometers)."""
     s = _require_session()
     pts = [db.DPoint(p[0], p[1]) for p in points]
-    s.top.shapes(s.layer(layer, datatype)).insert(db.DPolygon(pts))
+    s.draw.shapes(s.layer(layer, datatype)).insert(db.DPolygon(pts))
     return f"Polygon ({len(pts)} pts) on {layer}/{datatype}."
 
 
@@ -131,7 +138,7 @@ def add_path(layer: int, points: list[list[float]], width: float, datatype: int 
     """Add a path: centerline [x, y] points (micrometers) with the given width."""
     s = _require_session()
     pts = [db.DPoint(p[0], p[1]) for p in points]
-    s.top.shapes(s.layer(layer, datatype)).insert(db.DPath(pts, width))
+    s.draw.shapes(s.layer(layer, datatype)).insert(db.DPath(pts, width))
     return f"Path ({len(pts)} pts, width={width}) on {layer}/{datatype}."
 
 
@@ -139,8 +146,155 @@ def add_path(layer: int, points: list[list[float]], width: float, datatype: int 
 def add_label(layer: int, x: float, y: float, text: str, datatype: int = 0) -> str:
     """Add a text label at (x, y) micrometers."""
     s = _require_session()
-    s.top.shapes(s.layer(layer, datatype)).insert(db.DText(text, db.DTrans(db.DVector(x, y))))
+    s.draw.shapes(s.layer(layer, datatype)).insert(db.DText(text, db.DTrans(db.DVector(x, y))))
     return f"Label '{text}' at ({x},{y}) on {layer}/{datatype}."
+
+
+# ---------------------------------------------------------------------------
+# Cells, placement & routing (building blocks for place-and-route)
+# ---------------------------------------------------------------------------
+def _orient_to_trans(orient: str, mag: float, x: float, y: float) -> "db.DCplxTrans":
+    """Parse 'r0' / 'r90' / 'r180' / 'r270' / 'm0' / 'm90' ... into a DCplxTrans."""
+    o = orient.strip().lower()
+    mirror = o.startswith("m")
+    digits = "".join(ch for ch in o if ch.isdigit())
+    rot = float(digits) if digits else 0.0
+    return db.DCplxTrans(mag, rot, mirror, db.DVector(x, y))
+
+
+def _manhattanize(pts: list[tuple[float, float]], horizontal_first: bool = True):
+    """Insert L-corners so every segment is axis-aligned (Manhattan)."""
+    if not pts:
+        return []
+    out = [pts[0]]
+    for (x0, y0), (x1, y1) in zip(pts, pts[1:]):
+        if x0 != x1 and y0 != y1:
+            out.append((x1, y0) if horizontal_first else (x0, y1))
+        out.append((x1, y1))
+    return out
+
+
+@mcp.tool()
+def create_cell(name: str) -> str:
+    """Create (or select) a cell and make it the active drawing target.
+
+    Subsequent add_box / add_polygon / add_via / add_wire / place_cell calls go into
+    this cell. Use it to build a reusable library cell, then ``use_cell`` back to the
+    top and ``place_cell`` to instance it. Returns to the top cell with use_cell(top).
+    """
+    s = _require_session()
+    if s.layout.has_cell(name):
+        cell = s.layout.cell(s.layout.cell_by_name(name))
+    else:
+        cell = s.layout.create_cell(name)
+    s.draw_cell = cell
+    return f"Active drawing cell: '{name}'. add_* now target this cell."
+
+
+@mcp.tool()
+def use_cell(name: str) -> str:
+    """Switch the active drawing cell to an existing cell (e.g. the top cell)."""
+    s = _require_session()
+    if not s.layout.has_cell(name):
+        names = [c.name for c in s.layout.each_cell()]
+        raise RuntimeError(f"Cell '{name}' not found. Cells: {names}")
+    s.draw_cell = s.layout.cell(s.layout.cell_by_name(name))
+    return f"Active drawing cell: '{name}'."
+
+
+@mcp.tool()
+def place_cell(
+    cell: str,
+    x: float,
+    y: float,
+    orient: str = "r0",
+    mag: float = 1.0,
+    nx: int = 1,
+    ny: int = 1,
+    dx: float = 0.0,
+    dy: float = 0.0,
+) -> str:
+    """Place an instance (or nx*ny array) of ``cell`` into the active cell.
+
+    orient: r0/r90/r180/r270 (rotation) or m0/m90/... (mirror + rotation). For an
+    array, dx/dy are the column/row pitches in micrometers. Coordinates in um.
+    """
+    s = _require_session()
+    if not s.layout.has_cell(cell):
+        names = [c.name for c in s.layout.each_cell()]
+        raise RuntimeError(f"Cell '{cell}' not found. Cells: {names}")
+    idx = s.layout.cell_by_name(cell)
+    trans = _orient_to_trans(orient, mag, x, y)
+    if nx > 1 or ny > 1:
+        inst = db.DCellInstArray(idx, trans, db.DVector(dx, 0.0), db.DVector(0.0, dy), nx, ny)
+    else:
+        inst = db.DCellInstArray(idx, trans)
+    s.draw.insert(inst)
+    grid = f" as {nx}x{ny} (pitch {dx},{dy})" if (nx > 1 or ny > 1) else ""
+    return f"Placed '{cell}' at ({x},{y}) {orient}{grid} in '{s.draw.name}'."
+
+
+@mcp.tool()
+def add_via(
+    x: float,
+    y: float,
+    bottom_layer: int,
+    top_layer: int,
+    cut_layer: int,
+    cut_size: float = 0.1,
+    cut_space: float = 0.1,
+    rows: int = 1,
+    cols: int = 1,
+    enclosure: float = 0.05,
+    bottom_datatype: int = 0,
+    top_datatype: int = 0,
+    cut_datatype: int = 0,
+) -> str:
+    """Add a via (cut array + enclosing metal on both layers) centred at (x, y).
+
+    Builds a rows*cols array of cuts (cut_size, spaced by cut_space) on ``cut_layer``
+    and a metal landing on ``bottom_layer`` and ``top_layer`` extended by ``enclosure``
+    around the cut array. All dimensions in micrometers.
+    """
+    s = _require_session()
+    cell = s.draw
+    pitch = cut_size + cut_space
+    total_w = cols * cut_size + (cols - 1) * cut_space
+    total_h = rows * cut_size + (rows - 1) * cut_space
+    x0 = x - total_w / 2.0
+    y0 = y - total_h / 2.0
+    cl = s.layer(cut_layer, cut_datatype)
+    for i in range(cols):
+        for j in range(rows):
+            cx = x0 + i * pitch
+            cy = y0 + j * pitch
+            cell.shapes(cl).insert(db.DBox(cx, cy, cx + cut_size, cy + cut_size))
+    mx0, my0 = x0 - enclosure, y0 - enclosure
+    mx1, my1 = x0 + total_w + enclosure, y0 + total_h + enclosure
+    cell.shapes(s.layer(bottom_layer, bottom_datatype)).insert(db.DBox(mx0, my0, mx1, my1))
+    cell.shapes(s.layer(top_layer, top_datatype)).insert(db.DBox(mx0, my0, mx1, my1))
+    return (
+        f"Via {bottom_layer}->{top_layer} at ({x},{y}): {rows}x{cols} cuts on "
+        f"{cut_layer}, enclosure {enclosure} um, in '{cell.name}'."
+    )
+
+
+@mcp.tool()
+def add_wire(
+    layer: int,
+    points: list[list[float]],
+    width: float,
+    datatype: int = 0,
+    horizontal_first: bool = True,
+) -> str:
+    """Add a Manhattan wire: routes through ``points`` inserting L-corners so every
+    segment is axis-aligned. ``horizontal_first`` chooses the corner direction at each
+    dog-leg. For layer changes, drop an add_via at the turn. Coordinates in um."""
+    s = _require_session()
+    pts = _manhattanize([(float(p[0]), float(p[1])) for p in points], horizontal_first)
+    dpts = [db.DPoint(px, py) for px, py in pts]
+    s.draw.shapes(s.layer(layer, datatype)).insert(db.DPath(dpts, width))
+    return f"Wire on {layer}/{datatype}: {len(dpts)} pts (Manhattan), width={width} um, in '{s.draw.name}'."
 
 
 @mcp.tool()
@@ -249,7 +403,7 @@ def load_gds(path: str, top_cell: Optional[str] = None) -> str:
     ly = db.Layout()
     ly.read(str(p))
     top = _resolve_top(ly, top_cell)
-    _session = LayoutSession(layout=ly, top=top)
+    _session = LayoutSession(layout=ly, top=top, draw_cell=top)
     nlayers = len(list(ly.layer_indexes()))
     return (
         f"Loaded {p}: top_cell='{top.name}', dbu={ly.dbu} um, "

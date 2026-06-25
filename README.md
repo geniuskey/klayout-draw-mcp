@@ -13,6 +13,10 @@ Layout geometry is built in-process with the standalone [`klayout`](https://pypi
 | `add_polygon(layer, points, datatype)` | Add a polygon from `[x, y]` vertices |
 | `add_path(layer, points, width, datatype)` | Add a path with width |
 | `add_label(layer, x, y, text, datatype)` | Add a text label |
+| `create_cell(name)` / `use_cell(name)` | Create/select the active drawing cell |
+| `place_cell(cell, x, y, orient, nx, ny, dx, dy)` | Place an instance or array of a cell |
+| `add_via(x, y, bottom_layer, top_layer, cut_layer, …)` | Via: cut array + enclosing metal |
+| `add_wire(layer, points, width)` | Manhattan wire (auto L-corners) |
 | `layout_info()` | Inspect current layout (layers, bbox, shape count) |
 | `load_gds(path, top_cell?)` | Load an existing GDS/OASIS into the session for editing |
 | `inspect_gds(path?)` | Per-layer shape count, area and bbox of a file or the session |
@@ -75,6 +79,21 @@ tool. The scripts share one layer map (OD 3/0, POLY 6/0, NPLUS 4/0, METAL1 9/0, 
 | `nmos_transistor.py` | A single NMOS (active, poly gate, n+, contacts, M1 S/G/D) |
 | `cmos_inverter.py` | A CMOS inverter: PMOS over NMOS, shared gate, Vdd/Vss rails |
 | `cis_aps_pixel.py` | A 1 µm 4T CMOS image-sensor pixel, tiled as a 2×2 array |
+
+## Place &amp; route skill
+
+`skills/klayout-pnr/` packages place-and-route recipes — row placement, power rails, and
+an obstacle-aware maze (Lee) router — plus a `SKILL.md` workflow guide for assistants.
+Copy it to your skills directory to have it auto-discovered:
+
+```bash
+cp -r skills/klayout-pnr ~/.claude/skills/
+```
+
+## Documentation
+
+Full docs (Getting Started walkthrough, examples, editing/DRC, place &amp; route) are at
+**https://geniuskey.github.io/klayout-draw-mcp/**.
 
 ## Note
 

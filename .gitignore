@@ -15,3 +15,6 @@ dist/
 *.gds
 *.oas
 *.gds.gz
+
+# MkDocs build output
+site/

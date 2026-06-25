@@ -7,10 +7,31 @@ requires-python = ">=3.10"
 license = { text = "MIT" }
 authors = [{ name = "geniuskey", email = "geniuskey@gmail.com" }]
 keywords = ["mcp", "klayout", "gds", "eda", "layout", "drawing"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Scientific/Engineering :: Electronic Design Automation (EDA)",
+]
 dependencies = [
     "mcp>=1.2.0",
     "klayout>=0.29",
 ]
+
+[project.optional-dependencies]
+docs = ["mkdocs-material>=9.5"]
+
+[project.urls]
+Homepage = "https://github.com/geniuskey/klayout-draw-mcp"
+Documentation = "https://geniuskey.github.io/klayout-draw-mcp/"
+Repository = "https://github.com/geniuskey/klayout-draw-mcp"
+Issues = "https://github.com/geniuskey/klayout-draw-mcp/issues"
 
 [project.scripts]
 klayout-draw-mcp = "klayout_draw_mcp.server:main"

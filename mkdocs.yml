@@ -1,0 +1,58 @@
+site_name: klayout-draw-mcp
+site_description: An MCP server for drawing, generating and editing GDS layouts with KLayout.
+site_url: https://geniuskey.github.io/klayout-draw-mcp/
+repo_url: https://github.com/geniuskey/klayout-draw-mcp
+repo_name: geniuskey/klayout-draw-mcp
+copyright: Copyright &copy; geniuskey
+
+theme:
+  name: material
+  icon:
+    repo: fontawesome/brands/github
+  palette:
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      primary: indigo
+      accent: indigo
+      toggle:
+        icon: material/weather-night
+        name: Switch to dark mode
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      primary: indigo
+      accent: indigo
+      toggle:
+        icon: material/weather-sunny
+        name: Switch to light mode
+  features:
+    - navigation.instant
+    - navigation.top
+    - navigation.sections
+    - content.code.copy
+    - content.code.annotate
+    - toc.follow
+
+markdown_extensions:
+  - admonition
+  - attr_list
+  - md_in_html
+  - toc:
+      permalink: true
+  - pymdownx.highlight:
+      anchor_linenums: true
+  - pymdownx.inlinehilite
+  - pymdownx.superfences
+  - pymdownx.snippets:
+      base_path: ["."]
+      check_paths: true
+
+nav:
+  - Home: index.md
+  - Examples: examples.md
+
+extra:
+  social:
+    - icon: fontawesome/brands/github
+      link: https://github.com/geniuskey/klayout-draw-mcp
+    - icon: fontawesome/brands/python
+      link: https://pypi.org/project/klayout-draw-mcp/

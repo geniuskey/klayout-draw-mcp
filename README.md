@@ -47,6 +47,25 @@ Claude calls `new_layout` → `add_box` / `add_path` → `save_gds(open_after=Tr
 
 For anything beyond the basic shapes, `run_script` exposes the full `klayout.db` API.
 
+## Examples
+
+Self-contained scripts in [`examples/`](examples). Each builds a layout with the
+standalone `klayout.db` module and writes a GDS:
+
+```bash
+uv run python examples/cis_aps_pixel.py out.gds
+```
+
+You can also paste the body of a script's `build()` function into the `run_script`
+tool. The scripts share one layer map (OD 3/0, POLY 6/0, NPLUS 4/0, METAL1 9/0, ...).
+
+| Example | What it draws |
+| --- | --- |
+| `basic_shapes.py` | The four primitives: box, path, polygon, label |
+| `nmos_transistor.py` | A single NMOS (active, poly gate, n+, contacts, M1 S/G/D) |
+| `cmos_inverter.py` | A CMOS inverter: PMOS over NMOS, shared gate, Vdd/Vss rails |
+| `cis_aps_pixel.py` | A 1 µm 4T CMOS image-sensor pixel, tiled as a 2×2 array |
+
 ## Note
 
 `run_script` executes arbitrary Python locally, in-process. Only run scripts you trust.

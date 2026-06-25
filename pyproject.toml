@@ -1,0 +1,23 @@
+[project]
+name = "klayout-mcp"
+version = "0.1.0"
+description = "MCP server for KLayout: draw, generate, and view GDS layouts."
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "MIT" }
+authors = [{ name = "geniuskey", email = "geniuskey@gmail.com" }]
+keywords = ["mcp", "klayout", "gds", "eda", "layout"]
+dependencies = [
+    "mcp>=1.2.0",
+    "klayout>=0.29",
+]
+
+[project.scripts]
+klayout-mcp = "klayout_mcp.server:main"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/klayout_mcp"]

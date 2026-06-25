@@ -25,7 +25,7 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-docs = ["mkdocs-material>=9.5"]
+docs = ["mkdocs-material>=9.5", "mkdocstrings[python]>=0.26"]
 
 [project.urls]
 Homepage = "https://github.com/geniuskey/klayout-draw-mcp"

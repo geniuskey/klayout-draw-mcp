@@ -15,6 +15,10 @@ The screenshots below are rendered headlessly with `klayout.lay` by
 [`scripts/render_examples.py`](https://github.com/geniuskey/klayout-draw-mcp/blob/main/scripts/render_examples.py),
 the same way the documentation builds them in CI.
 
+All examples share one layer map; this is how KLayout colours those layers:
+
+![Layer colour legend](assets/images/layer_legend.png){ loading=lazy width=360 }
+
 ## Basic shapes
 
 The four primitives — box, path, polygon and label — on a few layers. The place to

@@ -64,6 +64,28 @@ def gs_layouts() -> dict:
     c.shapes(ly.layer(2, 0)).insert(db.DBox(5, 5, 8, 8))
     c.shapes(ly.layer(63, 0)).insert(db.DText("edit", db.DTrans(db.DVector(6.5, 6.5))))
     res["gs_edit"] = ly
+
+    # DRC: highlight OD spacing violations on the CIS pixel with marker boxes
+    cis = load_build(EXAMPLES / "cis_aps_pixel.py")()
+    ctop = cis.top_cell()
+    reg = db.Region(ctop.begin_shapes_rec(cis.find_layer(3, 0)))
+    mk = cis.layer(200, 0)
+    for ep in reg.space_check(round(0.15 / cis.dbu)).each():
+        ctop.shapes(mk).insert(ep.bbox().enlarged(60))  # +60 nm so markers are visible
+    res["drc_markers"] = cis
+
+    # layer colour legend: one swatch + label per shared layer
+    ly = db.Layout()
+    ly.dbu = 0.001
+    c = ly.create_cell("LEGEND")
+    items = [("OD", 3, 0), ("NPLUS", 4, 0), ("PPLUS", 5, 0), ("POLY", 6, 0),
+             ("CONT", 8, 0), ("M1", 9, 0), ("PD", 10, 0), ("VIA1", 11, 0), ("M2", 12, 0)]
+    for i, (name, l, d) in enumerate(items):
+        y = -i * 1.4
+        c.shapes(ly.layer(l, d)).insert(db.DBox(0, y, 2, y + 1))
+        c.shapes(ly.layer(63, 0)).insert(db.DText(f"{name}  {l}/{d}", db.DTrans(db.DVector(2.3, y + 0.3))))
+    res["layer_legend"] = ly
+
     return res
 
 

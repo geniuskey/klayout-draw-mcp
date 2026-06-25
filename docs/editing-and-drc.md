@@ -87,6 +87,11 @@ enclosure 10/0 of 3/0 >= 0.02um: PASS
 
 `max_report` (default 10) caps the number of locations listed per rule.
 
+Those locations can be drawn back as marker boxes to see exactly where the violations
+are. Here the OD spacing violations on the CIS pixel are highlighted on a marker layer:
+
+![DRC spacing violations highlighted with marker boxes](assets/images/drc_markers.png){ loading=lazy width=560 }
+
 !!! tip
     The violation locations are centre points (in µm), so an assistant can read them
     back, decide what to move, edit with the drawing tools, and re-run `drc_check` —

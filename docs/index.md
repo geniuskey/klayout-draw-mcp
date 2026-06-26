@@ -38,6 +38,8 @@ See the [Examples](examples.md) for layouts produced exactly this way.
 | `save_gds(path, open_after)` | Write GDS/OASIS; optionally open in the editor |
 | `open_layout(file_path)` | Open a file in KLayout (viewer) |
 | `open_editor(file_path?)` | Open KLayout in editor mode, or a blank layout |
+| `gui_exec(code, …)` | Edit the layout **already open** in a running KLayout window, live (via the bridge macro) |
+| `gui_info(…)` | Inspect the layout currently open in KLayout (checks the live bridge) |
 | `run_script(code)` | Run arbitrary Python with `klayout.db` (cell hierarchy, arrays, booleans, DRC, …) |
 
 ## Install
@@ -84,5 +86,12 @@ enclosure rules, each violation reported with a location:
 ]
 ```
 
+To edit a layout you **already have open** in a running KLayout window — instead of
+regenerating a file and reloading it — use the **live bridge**: run the
+`macros/mcp_live_bridge.py` macro inside KLayout, then the `gui_exec` / `gui_info` tools
+talk to that window and edit it in place. See [Live Editing](live-editing.md).
+
 !!! warning
-    `run_script` executes arbitrary Python locally, in-process. Only run scripts you trust.
+    `run_script` and `gui_exec` execute arbitrary Python. `run_script` runs in-process in
+    the server; `gui_exec` runs inside your KLayout application (loopback-only). Only run
+    code you trust.

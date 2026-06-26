@@ -44,6 +44,17 @@ micrometers; the database grid defaults to `dbu = 0.001` (1 nm).
         - open_layout
         - open_editor
 
+## Live GUI bridge
+
+Edit the layout already open in a running KLayout window. Requires the
+`macros/mcp_live_bridge.py` macro running inside KLayout — see [Live Editing](live-editing.md).
+
+::: klayout_draw_mcp.server
+    options:
+      members:
+        - gui_info
+        - gui_exec
+
 ## Scripting
 
 ::: klayout_draw_mcp.server

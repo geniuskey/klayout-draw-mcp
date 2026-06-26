@@ -16,8 +16,11 @@ All coordinates in the high-level tools are in micrometers.
 from __future__ import annotations
 
 import io
+import json
 import os
 import shutil
+import socket
+import struct
 import subprocess
 import sys
 from contextlib import redirect_stdout
@@ -544,6 +547,108 @@ def drc_check(
         lines.append(line)
     summary = f"DRC: {len(rules)} rules, {fails} failing\n" + "\n".join(lines)
     return summary
+
+
+# ---------------------------------------------------------------------------
+# Live GUI bridge: edit the layout already loaded in a running KLayout window
+# ---------------------------------------------------------------------------
+def _gui_request(code: str, host: str, port: int, timeout: float) -> dict:
+    """Send code to the mcp_live_bridge macro running inside KLayout and return its reply.
+
+    Framing: 4-byte big-endian length prefix + UTF-8 JSON, both directions.
+    """
+    payload = json.dumps({"code": code}).encode("utf-8")
+    try:
+        with socket.create_connection((host, port), timeout=timeout) as sock:
+            sock.settimeout(timeout)
+            sock.sendall(struct.pack(">I", len(payload)) + payload)
+
+            def recv_exactly(n: int) -> bytes:
+                chunks = []
+                while n > 0:
+                    b = sock.recv(n)
+                    if not b:
+                        raise RuntimeError("connection closed by KLayout bridge")
+                    chunks.append(b)
+                    n -= len(b)
+                return b"".join(chunks)
+
+            (length,) = struct.unpack(">I", recv_exactly(4))
+            return json.loads(recv_exactly(length).decode("utf-8"))
+    except (ConnectionRefusedError, OSError) as e:
+        raise RuntimeError(
+            f"Could not reach the KLayout live bridge at {host}:{port} ({e}). "
+            "Start KLayout, load your layout, then run the macros/mcp_live_bridge.py "
+            "macro inside it (Macro IDE: F5)."
+        ) from e
+
+
+def _format_gui_reply(reply: dict) -> str:
+    out = reply.get("stdout", "")
+    if reply.get("ok"):
+        return f"OK\n{out.strip()}" if out.strip() else "OK"
+    err = reply.get("error") or "unknown error"
+    tb = reply.get("traceback") or ""
+    parts = [f"ERROR: {err}"]
+    if out.strip():
+        parts.append(f"--- stdout ---\n{out.strip()}")
+    if tb.strip():
+        parts.append(f"--- traceback ---\n{tb.strip()}")
+    return "\n".join(parts)
+
+
+@mcp.tool()
+def gui_exec(
+    code: str,
+    host: str = "127.0.0.1",
+    port: int = 8082,
+    timeout: float = 20.0,
+) -> str:
+    """Edit the layout *already open* in a running KLayout window, live.
+
+    Use this instead of regenerating + reloading a GDS when the user wants to modify
+    the layout they already have loaded in the KLayout GUI. It sends Python to the
+    ``mcp_live_bridge`` macro running inside that KLayout (see macros/mcp_live_bridge.py),
+    which executes it on the GUI main thread against the visible layout and redraws.
+
+    Injected names (GUI Python = ``pya``, not ``klayout.db``):
+      pya     - the KLayout GUI Python module
+      view    - the current pya.LayoutView (or None if nothing is open)
+      cv      - the active pya.CellView
+      layout  - the current pya.Layout (coordinates in micrometers via DBox/DPoint)
+      cell    - the currently shown pya.Cell (add_* target)
+      refresh() - redraw the view (also called automatically after each call)
+
+    Variables persist across calls. Example - add a box to the open layout::
+
+        cell.shapes(layout.layer(1, 0)).insert(pya.DBox(0, 0, 5, 5))
+
+    Returns captured stdout, or the error and traceback from inside KLayout.
+    """
+    reply = _gui_request(code, host, port, timeout)
+    return _format_gui_reply(reply)
+
+
+@mcp.tool()
+def gui_info(host: str = "127.0.0.1", port: int = 8082, timeout: float = 20.0) -> str:
+    """Report the layout currently loaded in the running KLayout window (via the live bridge).
+
+    Confirms the bridge is reachable and shows the active cell, dbu, layers and bbox of
+    the layout open in the GUI, so you can edit it in place with ``gui_exec`` rather than
+    reloading a file. Requires the mcp_live_bridge.py macro running inside KLayout.
+    """
+    probe = (
+        "if view is None or layout is None:\n"
+        "    print('No layout is open in KLayout.')\n"
+        "else:\n"
+        "    infos = [layout.get_info(i) for i in layout.layer_indexes()]\n"
+        "    layers = ', '.join(f'{i.layer}/{i.datatype}' for i in infos) or '(none)'\n"
+        "    print(f\"cell='{cell.name}', dbu={layout.dbu} um, cells={layout.cells()}\")\n"
+        "    print(f'layers: {layers}')\n"
+        "    print(f'bbox: {cell.dbbox().to_s()} um')\n"
+    )
+    reply = _gui_request(probe, host, port, timeout)
+    return _format_gui_reply(reply)
 
 
 # ---------------------------------------------------------------------------

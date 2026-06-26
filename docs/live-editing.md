@@ -26,7 +26,12 @@ run Python against the layout you actually have open, editing it in place and re
 
 1. Open KLayout (the GUI application) and load the layout you want to edit.
 2. Open the Macro Development IDE (**F5**, or *Tools → Macro Development*).
-3. Create a new **Python** macro, paste in [`macros/mcp_live_bridge.py`](https://github.com/geniuskey/klayout-draw-mcp/blob/main/macros/mcp_live_bridge.py), and **Run** it (▶).
+3. Create a new **Python** macro, paste in the bridge source, and **Run** it (▶).
+
+To get the source, just ask the assistant — it calls the **`gui_bridge_macro()`** tool and
+prints the whole macro for you to paste. (It ships with the package as
+[`klayout_draw_mcp/mcp_live_bridge.py`](https://github.com/geniuskey/klayout-draw-mcp/blob/main/src/klayout_draw_mcp/mcp_live_bridge.py),
+so there is nothing extra to download.)
 
 You should see in the macro console:
 
@@ -35,10 +40,10 @@ You should see in the macro console:
 [mcp_live_bridge] ready - the klayout-draw-mcp gui_exec tool can now connect
 ```
 
-Alternatively, launch KLayout with the macro and a file in one go:
+Alternatively, launch KLayout with the macro file and a layout in one go:
 
 ```bash
-klayout -rm /path/to/macros/mcp_live_bridge.py my_layout.gds
+klayout -rm /path/to/mcp_live_bridge.py my_layout.gds
 ```
 
 The listener keeps running for the life of the window; you only start it once per session.
@@ -47,6 +52,7 @@ The listener keeps running for the life of the window; you only start it once pe
 
 With the bridge running, ask for changes to the **open** layout. The assistant uses:
 
+- **`gui_bridge_macro()`** — returns the macro source to paste into KLayout (step 1 above).
 - **`gui_info()`** — confirm the bridge is reachable and report the active cell, dbu, layers
   and bbox of the layout currently open in KLayout.
 - **`gui_exec(code)`** — run Python on KLayout's main thread against the visible layout.
@@ -105,7 +111,7 @@ layout.write("/path/to/out.gds")
 
 | Symptom | Fix |
 | --- | --- |
-| `Could not reach the KLayout live bridge` | The macro isn't running. Start KLayout and run `mcp_live_bridge.py` (F5 → Run). Check the console shows it listening on `127.0.0.1:8082`. |
+| `Could not reach the KLayout live bridge` | The macro isn't running. Get the source via `gui_bridge_macro()`, paste it into KLayout and Run (F5). Check the console shows it listening on `127.0.0.1:8082`. |
 | `No layout is open in KLayout.` | The bridge is up but no layout is loaded in the active view. Open a file in KLayout first. |
-| Port already in use | Another bridge (or process) holds `8082`. Edit `PORT` at the top of `mcp_live_bridge.py`, then pass the same `port=` to `gui_exec`/`gui_info`. |
+| Port already in use | Another bridge (or process) holds `8082`. Edit `PORT` at the top of the macro, then pass the same `port=` to `gui_exec`/`gui_info`. |
 | Edits don't appear | Call `refresh()` at the end of your snippet (normally automatic). Make sure you edited `cell`/`layout` from the bridge, not the in-process session. |

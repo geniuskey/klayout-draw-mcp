@@ -40,6 +40,7 @@ See the [Examples](examples.md) for layouts produced exactly this way.
 | `open_editor(file_path?)` | Open KLayout in editor mode, or a blank layout |
 | `gui_exec(code, …)` | Edit the layout **already open** in a running KLayout window, live (via the bridge macro) |
 | `gui_info(…)` | Inspect the layout currently open in KLayout (checks the live bridge) |
+| `gui_bridge_macro()` | Return the KLayout macro source that powers live editing (paste it into KLayout) |
 | `run_script(code)` | Run arbitrary Python with `klayout.db` (cell hierarchy, arrays, booleans, DRC, …) |
 
 ## Install

@@ -4,6 +4,16 @@ All notable changes to this project are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/), and this project adheres to
 [Semantic Versioning](https://semver.org/).
 
+## [0.2.0] - 2026-06-26
+
+### Added
+- Live GUI bridge: edit the layout **already open** in a running KLayout window instead of
+  regenerating and reloading a file. A macro (`mcp_live_bridge.py`, shipped with the package)
+  runs inside KLayout and exposes a loopback TCP listener; new tools `gui_exec` (run Python
+  against the visible `pya` layout, on the GUI main thread) and `gui_info` (inspect the open
+  layout) drive it, and `gui_bridge_macro` returns the macro source to paste into KLayout.
+- Documentation: a Live Editing page, plus an OpenCode MCP setup guide in Installation.
+
 ## [0.1.2] - 2026-06-26
 
 ### Added
@@ -38,6 +48,7 @@ All notable changes to this project are documented here. The format is based on
 - GitHub Actions for building/deploying the docs to GitHub Pages and for publishing to
   PyPI via Trusted Publishing.
 
+[0.2.0]: https://pypi.org/project/klayout-draw-mcp/0.2.0/
 [0.1.2]: https://pypi.org/project/klayout-draw-mcp/0.1.2/
 [0.1.1]: https://pypi.org/project/klayout-draw-mcp/0.1.1/
 [0.1.0]: https://pypi.org/project/klayout-draw-mcp/0.1.0/

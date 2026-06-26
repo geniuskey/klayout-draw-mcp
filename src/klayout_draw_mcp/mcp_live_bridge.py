@@ -1,25 +1,25 @@
 # MCP live bridge for the KLayout GUI.
 #
-# Run this *inside* a running KLayout application (Macro IDE: F5 -> new Python
-# macro -> paste -> Run, or launch with `klayout -rm mcp_live_bridge.py file.gds`).
-# It opens a small TCP listener that the klayout-draw-mcp server connects to via
-# its `gui_exec` / `gui_info` tools, so the assistant can edit the layout that is
-# *already loaded* in this window instead of regenerating and reloading a file.
+# Run this *inside* a running KLayout application so the klayout-draw-mcp server can
+# edit the layout you already have loaded, instead of regenerating and reloading a file.
+# Easiest path: ask the assistant to call the `gui_bridge_macro` tool, paste the output
+# into KLayout's Macro IDE (F5 -> new Python macro) and Run it. Or launch KLayout with
+# `klayout -rm <path-to-this-file> my_layout.gds`.
 #
-# Protocol (loopback only by default): each request and response is a 4-byte
-# big-endian length prefix followed by a UTF-8 JSON object.
+# Protocol (loopback only by default): each request and response is a 4-byte big-endian
+# length prefix followed by a UTF-8 JSON object.
 #   request  : {"code": "<python>"}
 #   response : {"ok": bool, "stdout": str, "error": str|null, "traceback": str|null}
 #
-# The code runs on KLayout's main (GUI) thread with these names injected:
-#   pya     - the KLayout GUI Python module
-#   view    - the current pya.LayoutView (or None)
-#   cv      - the active pya.CellView (or None)
-#   layout  - the current pya.Layout (or None)
-#   cell    - the current pya.Cell, i.e. the cell shown in the view (or None)
+# Received code runs on KLayout's main (GUI) thread with these names injected:
+#   pya       - the KLayout GUI Python module
+#   view      - the current pya.LayoutView (or None)
+#   cv        - the active pya.CellView (or None)
+#   layout    - the current pya.Layout (or None)
+#   cell      - the current pya.Cell, i.e. the cell shown in the view (or None)
 #   refresh() - redraw the view (called automatically after every request)
-# A persistent globals dict is reused across requests, so variables you set in
-# one call are still available in the next.
+# A persistent globals dict is reused across requests, so variables you set in one call
+# are still available in the next.
 
 import io
 import json
@@ -34,24 +34,25 @@ import pya
 HOST = "127.0.0.1"
 PORT = 8082
 
-# Work queued from socket threads, drained on the GUI main thread by a QTimer.
+# Work is queued from the socket threads and drained on the GUI main thread by a timer.
+# KLayout's QTimer can miss repeating timeouts, so we use a self-re-arming single-shot
+# timer (the documented workaround) and connect the slot by assignment — pya signals do
+# not support .connect().
 _queue = []
 _qlock = threading.Lock()
 _globals = {"pya": pya}
+_timer = None  # kept as a module global so it is not garbage-collected
 
 
 def _refresh(view):
     """Make newly added shapes / layers visible in the view."""
     if view is None:
         return
-    try:
-        view.add_missing_layers()
-    except Exception:
-        pass
-    try:
-        view.update_content()
-    except Exception:
-        pass
+    for call in ("add_missing_layers", "update_content"):
+        try:
+            getattr(view, call)()
+        except Exception:
+            pass
 
 
 def _exec_on_main(code):
@@ -74,28 +75,29 @@ def _exec_on_main(code):
             exec(code, g)
     except Exception as e:  # noqa: BLE001 - report any error back to the caller
         resp["ok"] = False
-        resp["error"] = "".join(
-            traceback.format_exception_only(type(e), e)
-        ).strip()
+        resp["error"] = "".join(traceback.format_exception_only(type(e), e)).strip()
         resp["traceback"] = traceback.format_exc()
     resp["stdout"] = buf.getvalue()
     _refresh(view)
     return resp
 
 
-def _drain():
-    """Runs on the main thread (QTimer): execute all pending requests."""
-    with _qlock:
-        items = _queue[:]
-        _queue.clear()
-    for code, holder, ev in items:
-        try:
-            holder.append(_exec_on_main(code))
-        except Exception as e:  # noqa: BLE001
-            holder.append(
-                {"ok": False, "stdout": "", "error": repr(e), "traceback": traceback.format_exc()}
-            )
-        ev.set()
+def _on_tick():
+    """Runs on the main thread: execute all pending requests, then re-arm the timer."""
+    try:
+        with _qlock:
+            items = _queue[:]
+            _queue.clear()
+        for code, holder, ev in items:
+            try:
+                holder.append(_exec_on_main(code))
+            except Exception as e:  # noqa: BLE001
+                holder.append(
+                    {"ok": False, "stdout": "", "error": repr(e), "traceback": traceback.format_exc()}
+                )
+            ev.set()
+    finally:
+        _timer.start(50)  # re-arm (robust against KLayout's missed repeating timeouts)
 
 
 def _recv_exactly(sock, n):
@@ -144,12 +146,15 @@ def _serve():
         threading.Thread(target=_handle, args=(conn,), daemon=True).start()
 
 
-# Main-thread drain timer (kept as a global so it is not garbage-collected).
-_timer = pya.QTimer()
-_timer.interval = 50
-_timer.timeout = _drain
-_timer.start()
+def start():
+    """Start the main-thread drain timer and the socket server."""
+    global _timer
+    _timer = pya.QTimer()
+    _timer.setSingleShot(True)
+    _timer.timeout = _on_tick  # pya connects a signal by assignment, not .connect()
+    _timer.start(50)
+    threading.Thread(target=_serve, daemon=True).start()
+    print("[mcp_live_bridge] ready - the klayout-draw-mcp gui_exec tool can now connect")
 
-# Accept connections off the GUI thread.
-threading.Thread(target=_serve, daemon=True).start()
-print("[mcp_live_bridge] ready - the klayout-draw-mcp gui_exec tool can now connect")
+
+start()

@@ -52,6 +52,7 @@ Edit the layout already open in a running KLayout window. Requires the
 ::: klayout_draw_mcp.server
     options:
       members:
+        - gui_bridge_macro
         - gui_info
         - gui_exec
 

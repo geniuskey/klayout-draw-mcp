@@ -598,6 +598,18 @@ def _format_gui_reply(reply: dict) -> str:
 
 
 @mcp.tool()
+def gui_bridge_macro() -> str:
+    """Return the KLayout GUI macro source that powers live editing (`gui_exec`/`gui_info`).
+
+    Give this to the user to paste into KLayout's Macro IDE (F5 -> new Python macro -> Run),
+    or have them save it and launch `klayout -rm <file> layout.gds`. It must be running inside
+    the KLayout window before `gui_exec` / `gui_info` can reach it. Returns the full macro text.
+    """
+    macro = Path(__file__).with_name("mcp_live_bridge.py")
+    return macro.read_text(encoding="utf-8")
+
+
+@mcp.tool()
 def gui_exec(
     code: str,
     host: str = "127.0.0.1",

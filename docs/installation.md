@@ -106,7 +106,7 @@ Add the server to your project's `opencode.json` (or `~/.config/opencode/config.
     }
     ```
 
-=== "pip (console script)"
+=== "pip"
 
     ```json
     {
@@ -114,7 +114,7 @@ Add the server to your project's `opencode.json` (or `~/.config/opencode/config.
       "mcp": {
         "klayout": {
           "type": "local",
-          "command": ["klayout-draw-mcp"],
+          "command": ["python", "-m", "klayout_draw_mcp.server"],
           "enabled": true
         }
       }

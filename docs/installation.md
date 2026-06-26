@@ -86,7 +86,64 @@ If you installed with pip instead of uvx, use `"command": "klayout-draw-mcp"` wi
 `"args": []`. **Restart Claude Desktop** after editing the file. On Windows, prefer
 forward slashes in any paths, or escape backslashes (`\\`) in JSON.
 
-## 4. Install the KLayout application (optional)
+## 4. Connect to OpenCode
+
+[OpenCode](https://opencode.ai) is a terminal-based AI coding agent that also supports MCP.
+Add the server to your project's `opencode.json` (or `~/.config/opencode/config.json` for global registration):
+
+=== "uvx (recommended)"
+
+    ```json
+    {
+      "$schema": "https://opencode.ai/config.json",
+      "mcp": {
+        "klayout": {
+          "type": "local",
+          "command": ["uvx", "klayout-draw-mcp"],
+          "enabled": true
+        }
+      }
+    }
+    ```
+
+=== "pip (console script)"
+
+    ```json
+    {
+      "$schema": "https://opencode.ai/config.json",
+      "mcp": {
+        "klayout": {
+          "type": "local",
+          "command": ["klayout-draw-mcp"],
+          "enabled": true
+        }
+      }
+    }
+    ```
+
+=== "From a checkout"
+
+    ```json
+    {
+      "$schema": "https://opencode.ai/config.json",
+      "mcp": {
+        "klayout": {
+          "type": "local",
+          "command": ["/path/to/repo/.venv/bin/python", "-m", "klayout_draw_mcp.server"],
+          "enabled": true
+        }
+      }
+    }
+    ```
+
+    On Windows use `.venv\Scripts\python.exe` instead.
+
+Place `opencode.json` in your project root for per-project registration, or in
+`~/.config/opencode/config.json` to make it available globally. After saving the
+file, run `opencode` in the terminal — the `klayout` MCP server will be loaded
+automatically and its tools will be available to the assistant.
+
+## 5. Install the KLayout application (optional)
 
 Only `open_layout` and `open_editor` launch the GUI; everything else uses the in-process
 `klayout.db` module. Install the app from [klayout.de](https://www.klayout.de/build.html).
@@ -99,7 +156,7 @@ Windows locations:
 %LOCALAPPDATA%\Programs\KLayout\klayout_app.exe
 ```
 
-## 5. Verify the connection
+## 6. Verify the connection
 
 In Claude Code, `/mcp` should show `klayout`. Then try a prompt:
 
